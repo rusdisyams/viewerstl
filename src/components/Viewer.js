@@ -1,47 +1,42 @@
-import React, { Suspense, useRef, useState } from 'react'
-
-import { Canvas, useLoader } from '@react-three/fiber'
+import React, { useRef, useEffect } from 'react'
+import * as THREE from 'three'
+import { useLoader, useThree, useFrame } from '@react-three/fiber'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
 import { OrbitControls } from '@react-three/drei'
 
+const Viewer = ({ url }) => {  
+  const material = new THREE.MeshPhongMaterial( { vertexColors: true, shininess: 10 } );
 
-const StlModel = ({ url }) => {
-  const stl = useLoader(STLLoader, url);
-
+  const model = useLoader(STLLoader, url);  
+  
   const ref = useRef();
 
+  const { camera} = useThree();
+  
+ useEffect(() => {
+    camera.up.set(0, 0, 1);         
+    const bbox = new THREE.Box3().setFromObject(ref.current)      
+    const sphere = bbox.getBoundingSphere(new THREE.Sphere())      
+    const { center, radius } = sphere
+
+    camera.position.copy(center.clone().add(new THREE.Vector3(1.5 * radius, -1.5 * radius, 1.5 * radius)))
+    camera.far = 500 * radius
+    camera.updateProjectionMatrix()
+
+  }, [camera, url]);
+
+  const orbit = useRef()
+  useFrame(() => orbit.current && orbit.current.update())
+
   return (
-    <>
-      <mesh ref={ref} >
-          <primitive object={stl} attach="geometry"/>
-          <meshStandardMaterial color={"orange"}/>
-      </mesh>
+    <>    
+      <mesh ref={ref} dispose={null} position={[0,0,0]} >
+        <primitive object={model} attach="geometry" />
+        <meshPhongMaterial color={0xe0740d} material={material} />
+      </mesh>       
+      <OrbitControls ref={orbit}  rotateSpeed={0.8} />      
     </>
   );
 };
-
-
-const Viewer = ({ urlInput }) => {
-
-  const [source, setSource] = useState('/plant.stl');
-
-  if (urlInput) {
-    setSource(urlInput);
-  }
-
-  return (
-    <>
-      <Canvas colorManagement camera={{position: [0, -3, 0], fov: 70}}>
-        <Suspense fallback={null}>
-          <StlModel url={source}/>
-        </Suspense>
-
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
-        <OrbitControls />
-      </Canvas>
-    </>
-  )
-}
 
 export default Viewer
